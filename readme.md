@@ -19,9 +19,9 @@ hostnamectl set-hostname node02
 
 #在master添加hosts(在msster上运行)
 cat >> /etc/hosts << EOF
-192.168.0.200 master01
-192.168.0.201 node01
-192.168.0.202 node02
+10.0.2.55 master01
+10.0.2.56 node01
+10.0.2.57 node02
 EOF
 
 #设置免登录(在msster上运行)
@@ -114,7 +114,7 @@ yum install -y kubelet-1.19.4 kubeadm-1.19.4 kubectl-1.19.4 && systemctl enable 
 ```
 
 ## 部署Kubernetes Master
-在192.168.0.200（Master）执行
+在10.0.2.55（Master）执行
 ```shell
 
 #注意，kubeadm init 前,先准备k8s运行所需的容器
@@ -145,7 +145,7 @@ bash alik8simages.sh
 
 #初始化k8s集群
 kubeadm init \
---apiserver-advertise-address=192.168.0.200 \
+--apiserver-advertise-address=10.0.2.55 \
 --kubernetes-version=v1.19.4 \
 --service-cidr=10.96.0.0/12 \
 --pod-network-cidr=10.244.0.0/16
