@@ -181,6 +181,10 @@ kubeadm join 10.0.2.55:6443 --token .....
 
 ```
 
+## 部署CNI网络插件
+
+```shell
+
 #下载flannel网络插件
 docker pull quay.io/coreos/flannel:v0.13.1-rc1 
 或  wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
@@ -202,30 +206,28 @@ echo "1" >/proc/sys/net/bridge/bridge-nf-call-iptables
 `Unable to update cni config: No networks found in /etc/cni/net.d`
 
 **解决方法**
+```shell
 vi /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
 添加
 Environment="KUBELET_NETWORK_ARGS=--network-plugin=cni --cni-conf-dir=/etc/cni/ --cni-bin-dir=/opt/cni/bin"
 Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --fail-swap-on=false"
 然后 systemctl daemon-reload && systemctl restart kubelet
-
+```
 **3.从节点kubectl get nodes 报错** `The connection to the server 10.10.0.2:6443 was refused - did you specify the right host or port`
 因为主节点执行了kubeadm init,但从节点并没有相关配置
 
 **解决办法**
+```shell
 scp -r /etc/kubernetes/admin.conf root@k8snode1:/etc/kubernetes/  
 scp -r /etc/kubernetes/admin.conf root@k8snode2:/etc/kubernetes/  
-
+```
 **4.从节点kubectl get nodes 报错** `The connection to the server localhost:8080 was refused - did you specify the right host or port?`
 **解决办法**
 kubectl命令需要使用kubernetes-admin来运行，需要admin.conf文件（conf文件是通过“ kubeadmin init”命令在主节点/etc/kubernetes 中创建），但是从节点没有conf文件，也没有设置 KUBECONFIG =/root/admin.conf环境变量，所以需要复制conf文件到从节点，并设置环境变量就OK了
-```
+```shell
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
-
-## 部署CNI网络插件
-
-```shell
 
