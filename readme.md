@@ -181,7 +181,8 @@ echo "1" >/proc/sys/net/bridge/bridge-nf-call-iptables
 ```shell
 
 #下载flannel网络插件
-docker pull quay.io/coreos/flannel:v0.13.1-rc1
+docker pull quay.io/coreos/flannel:v0.13.1-rc1 
+或  wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 
 kubectl apply -f kube-flannel.yml
 ```
