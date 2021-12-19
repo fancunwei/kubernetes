@@ -13,25 +13,25 @@
 ```shell
 
 #根据规划设置主机名(在3台机上分别运行)
-hostnamectl set-hostname master01
-hostnamectl set-hostname node01
-hostnamectl set-hostname node02
+hostnamectl set-hostname k8smaster1
+hostnamectl set-hostname k8snode1
+hostnamectl set-hostname k8snode2
 
 #在master添加hosts(在msster上运行)
 cat >> /etc/hosts << EOF
-10.0.2.55 master01
-10.0.2.56 node01
-10.0.2.57 node02
+10.0.2.55 k8smaster1
+10.0.2.56 k8snode1
+10.0.2.57 k8snode2
 EOF
 
 #设置免登录(在msster上运行)
 ssh-keygen
-ssh-copy-id root@node01
-ssh-copy-id root@node02
+ssh-copy-id root@k8snode1
+ssh-copy-id root@k8snode2
 
-#把hosts文件复制到node01\02(在msster上运行)
-scp /etc/hosts root@node01:/etc/hosts
-scp /etc/hosts root@node02:/etc/hosts
+#把hosts文件复制到k8snode1\k8snode2(在msster上运行)
+scp /etc/hosts root@k8snode1:/etc/hosts
+scp /etc/hosts root@k8snode2:/etc/hosts
 
 #关闭防火墙(在3台机运行)
 systemctl stop firewalld && systemctl disable firewalld
@@ -163,22 +163,23 @@ kubectl get nodes
 #then you can join any number of worker nodes by running the following on each as root
 #翻译：然后，您可以通过在每个worker节点上以root身份运行以下命令来连接任意数量的worker节点
 #接着把提示如下的语句复制到node节点运行
-kubeadm join 192.168.1.200:6443 --token ...
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 10.0.2.55:6443 --token .....
+
 ```
-
-### 遇到的问题
-
-**Kubeadm init过程中报错**：`[ERROR FileContent--proc-sys-net-bridge-bridge-nf-call-iptables]: /proc/sys/net/bridge/bridge-nf-call-iptables contents are not set to 1`
-
-**解决方法**：
-
-```shell
-echo "1" >/proc/sys/net/bridge/bridge-nf-call-iptables
-```
-
-## 部署CNI网络插件
-
-```shell
 
 #下载flannel网络插件
 docker pull quay.io/coreos/flannel:v0.13.1-rc1 
@@ -186,3 +187,45 @@ docker pull quay.io/coreos/flannel:v0.13.1-rc1
 
 kubectl apply -f kube-flannel.yml
 ```
+
+### 遇到的问题
+
+**1.Kubeadm init过程中报错**：`[ERROR FileContent--proc-sys-net-bridge-bridge-nf-call-iptables]: /proc/sys/net/bridge/bridge-nf-call-iptables contents are not set to 1`
+
+**解决方法**：
+
+```shell
+echo "1" >/proc/sys/net/bridge/bridge-nf-call-iptables
+```
+**2.主节点kubectl get nodes NotReady**
+通过 `systemctl status kubelet` 和 `journalctl -xeu kubelet` 分析，发现
+`Unable to update cni config: No networks found in /etc/cni/net.d`
+
+**解决方法**
+vi /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+添加
+Environment="KUBELET_NETWORK_ARGS=--network-plugin=cni --cni-conf-dir=/etc/cni/ --cni-bin-dir=/opt/cni/bin"
+Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --fail-swap-on=false"
+然后 systemctl daemon-reload && systemctl restart kubelet
+
+**3.从节点kubectl get nodes 报错** `The connection to the server 10.10.0.2:6443 was refused - did you specify the right host or port`
+因为主节点执行了kubeadm init,但从节点并没有相关配置
+
+**解决办法**
+scp -r /etc/kubernetes/admin.conf root@k8snode1:/etc/kubernetes/  
+scp -r /etc/kubernetes/admin.conf root@k8snode2:/etc/kubernetes/  
+
+**4.从节点kubectl get nodes 报错** `The connection to the server localhost:8080 was refused - did you specify the right host or port?`
+**解决办法**
+kubectl命令需要使用kubernetes-admin来运行，需要admin.conf文件（conf文件是通过“ kubeadmin init”命令在主节点/etc/kubernetes 中创建），但是从节点没有conf文件，也没有设置 KUBECONFIG =/root/admin.conf环境变量，所以需要复制conf文件到从节点，并设置环境变量就OK了
+```
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+
+## 部署CNI网络插件
+
+```shell
+
