@@ -213,6 +213,7 @@ Environment="KUBELET_NETWORK_ARGS=--network-plugin=cni --cni-conf-dir=/etc/cni/ 
 Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --fail-swap-on=false"
 然后 systemctl daemon-reload && systemctl restart kubelet
 ```
+并执行【部署CNI网络插件】相关命令
 **3.从节点kubectl get nodes 报错** `The connection to the server 10.10.0.2:6443 was refused - did you specify the right host or port`
 因为主节点执行了kubeadm init,但从节点并没有相关配置
 
